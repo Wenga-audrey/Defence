@@ -1,0 +1,373 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  LEARNER
+  TEACHER
+  PREP_ADMIN
+  SUPER_ADMIN
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  EXPIRED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  ORANGE_MONEY
+  MTN_MOMO
+  BANK_TRANSFER
+  CASH
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  firstName         String
+  lastName          String
+  password          String
+  avatar            String?
+  role              Role     @default(LEARNER)
+  phone             String?
+  paymentStatus     PaymentStatus @default(PENDING)
+  isEmailVerified   Boolean  @default(false)
+  emailVerifyToken  String?
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  enrollments       Enrollment[]
+  chapterProgress   ChapterProgress[]
+  quizResults       QuizResult[]
+  payments          Payment[]
+  forumTopics       ForumTopic[]
+  forumReplies      ForumReply[]
+  forumLikes        ForumLike[]
+  sentMessages      PrivateMessage[] @relation("MessageSender")
+  receivedMessages  PrivateMessage[] @relation("MessageRecipient")
+  teachingClasses   ClassTeacher[]
+  announcements     Announcement[]
+
+  @@map("users")
+}
+
+model PreparatoryClass {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  examType    String   // ENAM, ENS, POLICE, CUSTOMS, etc.
+  startDate   DateTime
+  endDate     DateTime
+  price       Decimal  @db.Decimal(10, 2)
+  maxStudents Int      @default(50)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  subjects      Subject[]
+  enrollments   Enrollment[]
+  teachers      ClassTeacher[]
+  payments      Payment[]
+  announcements Announcement[]
+
+  @@map("preparatory_classes")
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  classId     String
+  name        String   // Mathematics, French, History, etc.
+  description String?  @db.Text
+  order       Int      // Subject order in curriculum
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  class     PreparatoryClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  chapters  Chapter[]
+  quizzes   SubjectQuiz[]
+
+  @@map("subjects")
+}
+
+model Chapter {
+  id          String   @id @default(cuid())
+  subjectId   String
+  title       String
+  description String?  @db.Text
+  order       Int      // Chapter order within subject
+  duration    Int      @default(60) // Expected duration in minutes
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  lessons   Lesson[]
+  quizzes   ChapterQuiz[]
+  progress  ChapterProgress[]
+
+  @@map("chapters")
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  chapterId   String
+  title       String
+  content     String?  @db.LongText
+  videoUrl    String?
+  documentUrl String?  // PDF, PPT files
+  order       Int
+  duration    Int      @default(45) // minutes
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@map("lessons")
+}
+
+model ChapterProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  chapterId   String
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  timeSpent   Int       @default(0) // minutes
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chapterId])
+  @@map("chapter_progress")
+}
+
+model ChapterQuiz {
+  id          String   @id @default(cuid())
+  chapterId   String
+  title       String
+  description String?  @db.Text
+  timeLimit   Int      @default(30) // minutes
+  passingScore Int     @default(60) // percentage
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  chapter   Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  results   QuizResult[]
+
+  @@map("chapter_quizzes")
+}
+
+model SubjectQuiz {
+  id          String   @id @default(cuid())
+  subjectId   String
+  title       String
+  description String?  @db.Text
+  timeLimit   Int      @default(120) // minutes
+  passingScore Int     @default(60) // percentage
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  subject   Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  results   QuizResult[]
+
+  @@map("subject_quizzes")
+}
+
+model QuizQuestion {
+  id              String  @id @default(cuid())
+  chapterQuizId   String?
+  subjectQuizId   String?
+  question        String  @db.Text
+  type            String  @default("multiple-choice")
+  options         Json?   // For multiple choice questions
+  correctAnswer   String
+  explanation     String? @db.Text
+  difficulty      String  @default("MEDIUM")
+  points          Int     @default(1)
+  order           Int
+  isAIGenerated   Boolean @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  chapterQuiz ChapterQuiz? @relation(fields: [chapterQuizId], references: [id], onDelete: Cascade)
+  subjectQuiz SubjectQuiz? @relation(fields: [subjectQuizId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_questions")
+}
+
+model QuizResult {
+  id              String   @id @default(cuid())
+  userId          String
+  chapterQuizId   String?
+  subjectQuizId   String?
+  score           Int
+  maxScore        Int
+  timeSpent       Int      // minutes
+  answers         Json     // User answers and analysis
+  weakAreas       Json?    // AI-identified weak areas
+  suggestions     Json?    // AI suggestions for improvement
+  completedAt     DateTime @default(now())
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapterQuiz ChapterQuiz? @relation(fields: [chapterQuizId], references: [id], onDelete: Cascade)
+  subjectQuiz SubjectQuiz? @relation(fields: [subjectQuizId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_results")
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  userId    String
+  classId   String
+  status    String   @default("ACTIVE") // ACTIVE, COMPLETED, SUSPENDED
+  enrolledAt DateTime @default(now())
+  completedAt DateTime?
+
+  // Relations
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class PreparatoryClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classId])
+  @@map("enrollments")
+}
+
+model ClassTeacher {
+  id        String   @id @default(cuid())
+  classId   String
+  teacherId String
+  subjectId String?  // Teacher can be assigned to specific subjects
+  role      String   @default("TEACHER") // TEACHER, HEAD_TEACHER
+  assignedAt DateTime @default(now())
+
+  // Relations
+  class   PreparatoryClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher User             @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, teacherId, subjectId])
+  @@map("class_teachers")
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  userId        String
+  classId       String
+  amount        Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?       // External payment reference
+  phoneNumber   String?       // For mobile money payments
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class PreparatoryClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  classId   String
+  authorId  String
+  title     String
+  content   String   @db.Text
+  isUrgent  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  class  PreparatoryClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  author User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("announcements")
+}
+
+model ForumTopic {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  category  String
+  views     Int      @default(0)
+  isPinned  Boolean  @default(false)
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author   User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replies  ForumReply[]
+  likes    ForumLike[]
+
+  @@map("forum_topics")
+}
+
+model ForumReply {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  topicId   String
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topic  ForumTopic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  author User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes  ForumLike[]
+
+  @@map("forum_replies")
+}
+
+model ForumLike {
+  id      String  @id @default(cuid())
+  userId  String
+  topicId String?
+  replyId String?
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic ForumTopic? @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  reply ForumReply? @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topicId])
+  @@unique([userId, replyId])
+  @@map("forum_likes")
+}
+
+model PrivateMessage {
+  id          String   @id @default(cuid())
+  senderId    String
+  recipientId String
+  content     String   @db.Text
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  sender    User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("private_messages")
+}
