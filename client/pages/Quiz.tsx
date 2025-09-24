@@ -22,15 +22,13 @@ import { Link } from "react-router-dom";
 export default function Quiz() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [timeRemaining, setTimeRemaining] = useState(1800); // 30 minutes in seconds
+  const [timeRemaining, setTimeRemaining] = useState(1800); // default 30 minutes
   const [isRunning, setIsRunning] = useState(true);
   const [showAnswers, setShowAnswers] = useState(false);
-  const [flaggedQuestions, setFlaggedQuestions] = useState<Set<number>>(
-    new Set(),
-  );
+  const [flaggedQuestions, setFlaggedQuestions] = useState<Set<number>>(new Set());
 
-  // Mock quiz data
-  const quiz = {
+  // Quiz meta, can be overridden by AI-generated quiz
+  const [quiz, setQuiz] = useState({
     title: "ENSP Mathematics Practice Test",
     subject: "Advanced Mathematics",
     duration: 60,
@@ -41,9 +39,9 @@ export default function Quiz() {
       "Flag questions you want to review later",
       "Make sure to save your answers before submitting",
     ],
-  };
+  });
 
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [isRetake, setIsRetake] = useState(false);
 
@@ -51,6 +49,28 @@ export default function Quiz() {
   useEffect(() => {
     const loadQuestions = async () => {
       try {
+        // 1) Prefer AI-generated quiz stored by LessonPlayer
+        const aiQuizRaw = localStorage.getItem('aiGeneratedQuiz');
+        if (aiQuizRaw) {
+          const aiQuiz = JSON.parse(aiQuizRaw);
+          if (aiQuiz?.questions?.length) {
+            setQuestions(aiQuiz.questions);
+            setQuiz((prev) => ({
+              ...prev,
+              title: aiQuiz.title || prev.title,
+              subject: aiQuiz.subject || prev.subject,
+              totalQuestions: aiQuiz.questions.length,
+            }));
+            // Set timer to 2 minutes per question (configurable)
+            const seconds = aiQuiz.questions.length * 120;
+            setTimeRemaining(seconds);
+            setIsRetake(false);
+            // Clear after consumption to avoid stale quizzes on refresh
+            localStorage.removeItem('aiGeneratedQuiz');
+            return;
+          }
+        }
+
         // Check if this is a retake by looking for previous results
         const previousResults = localStorage.getItem('quizResults');
         const isRetake = previousResults !== null;
@@ -92,7 +112,7 @@ export default function Quiz() {
           }
         }
         
-        // Fallback to default questions (shuffled for variety)
+        // 2) Fallback to default questions (shuffled for variety)
         const defaultQuestions = [
           {
             id: 1,
@@ -177,6 +197,7 @@ export default function Quiz() {
         ];
         const shuffledQuestions = [...defaultQuestions].sort(() => Math.random() - 0.5);
         setQuestions(shuffledQuestions);
+        setQuiz((prev) => ({ ...prev, totalQuestions: shuffledQuestions.length }));
         console.log('Loaded default questions:', shuffledQuestions.length);
       } catch (error) {
         console.error('Error loading questions:', error);
@@ -263,6 +284,7 @@ export default function Quiz() {
           },
         ];
         setQuestions(defaultQuestions);
+        setQuiz((prev) => ({ ...prev, totalQuestions: defaultQuestions.length }));
       }
     };
     

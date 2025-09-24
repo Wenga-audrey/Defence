@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { api } from '@shared/api';
 import {
   Brain,
   Clock,
@@ -37,26 +38,16 @@ export default function AIRecommendations({ className = '' }: AIRecommendationsP
   const fetchRecommendations = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/ai/recommendations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          availableTime: 60 // Default 60 minutes per day
-        })
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        setRecommendations(data.recommendations);
+      const res = await api.post<any>(`/api/ai/recommendations`, { availableTime: 60 });
+      if (res.success && res.data) {
+        // Backend returns either { recommendations } or directly the data
+        const payload: any = res.data as any;
+        const recos = payload.recommendations || payload;
+        setRecommendations(recos);
         setLastUpdated(new Date());
       } else {
         // Use fallback data
-        setRecommendations(data.fallback || {
+        setRecommendations({
           priorityTopics: ["Review fundamentals", "Practice problem solving"],
           studyMethods: ["Active recall", "Spaced repetition"],
           timeAllocation: { review: "30%", newContent: "50%", practice: "20%" },
@@ -129,7 +120,7 @@ export default function AIRecommendations({ className = '' }: AIRecommendationsP
                 <h4 className="font-medium">Priority Topics</h4>
               </div>
               <div className="flex flex-wrap gap-2">
-                {recommendations.priorityTopics.map((topic, index) => (
+                {(recommendations?.priorityTopics || []).map((topic, index) => (
                   <Badge key={index} variant="outline" className="bg-orange-50 border-orange-200 text-orange-700">
                     {topic}
                   </Badge>
@@ -144,7 +135,7 @@ export default function AIRecommendations({ className = '' }: AIRecommendationsP
                 <h4 className="font-medium">Recommended Methods</h4>
               </div>
               <div className="flex flex-wrap gap-2">
-                {recommendations.studyMethods.map((method, index) => (
+                {(recommendations?.studyMethods || []).map((method, index) => (
                   <Badge key={index} variant="outline" className="bg-blue-50 border-blue-200 text-blue-700">
                     {method}
                   </Badge>
@@ -161,51 +152,26 @@ export default function AIRecommendations({ className = '' }: AIRecommendationsP
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center p-3 bg-green-50 rounded-lg">
                   <div className="text-lg font-semibold text-green-700">
-                    {recommendations.timeAllocation.review}
+                    {recommendations?.timeAllocation?.review || '30%'}
                   </div>
                   <div className="text-sm text-green-600">Review</div>
                 </div>
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
                   <div className="text-lg font-semibold text-blue-700">
-                    {recommendations.timeAllocation.newContent}
+                    {recommendations?.timeAllocation?.newContent || '50%'}
                   </div>
                   <div className="text-sm text-blue-600">New Content</div>
                 </div>
                 <div className="text-center p-3 bg-purple-50 rounded-lg">
                   <div className="text-lg font-semibold text-purple-700">
-                    {recommendations.timeAllocation.practice}
+                    {recommendations?.timeAllocation?.practice || '20%'}
                   </div>
                   <div className="text-sm text-purple-600">Practice</div>
                 </div>
               </div>
             </div>
 
-            {/* Weekly Goals */}
-            <div>
-              <div className="flex items-center space-x-2 mb-3">
-                <CheckCircle className="h-4 w-4 text-mindboost-green" />
-                <h4 className="font-medium">This Week's Goals</h4>
-              </div>
-              <ul className="space-y-2">
-                {recommendations.weeklyGoals.map((goal, index) => (
-                  <li key={index} className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-mindboost-green rounded-full"></div>
-                    <span className="text-sm text-gray-700">{goal}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Motivational Tip */}
-            <div className="bg-gradient-to-r from-mindboost-green/10 to-blue-50 p-4 rounded-lg">
-              <div className="flex items-start space-x-2">
-                <Zap className="h-4 w-4 text-mindboost-green mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-mindboost-green mb-1">AI Tip</h4>
-                  <p className="text-sm text-gray-700">{recommendations.motivationalTip}</p>
-                </div>
-              </div>
-            </div>
+            {/* Weekly Goals and AI Tip removed as requested */}
 
             {lastUpdated && (
               <div className="text-xs text-gray-500 text-center">

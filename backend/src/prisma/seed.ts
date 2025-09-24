@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Starting database seeding...");
+  console.log("Starting database seeding...");
 
   // Create super admin user
   const superAdminPassword = await bcrypt.hash("superadmin123", 12);
@@ -221,6 +221,61 @@ async function main() {
     },
   });
 
+  // Seed ENS chapters and lessons so learners have accessible content
+  const litPoetryChapter = await prisma.chapter.upsert({
+    where: { id: "ens-lit-poetry-chapter" },
+    update: {},
+    create: {
+      id: "ens-lit-poetry-chapter",
+      subjectId: litteratureSubject.id,
+      title: "Poésie Française du XIXe siècle",
+      description: "Analyse de la poésie romantique et parnassienne",
+      order: 1,
+      isPublished: true,
+    },
+  });
+
+  const litNovelChapter = await prisma.chapter.upsert({
+    where: { id: "ens-lit-novel-chapter" },
+    update: {},
+    create: {
+      id: "ens-lit-novel-chapter",
+      subjectId: litteratureSubject.id,
+      title: "Le Roman Français",
+      description: "Du réalisme au naturalisme: Balzac, Flaubert, Zola",
+      order: 2,
+      isPublished: true,
+    },
+  });
+
+  await prisma.lesson.upsert({
+    where: { id: "ens-lit-poetry-lesson-1" },
+    update: {},
+    create: {
+      id: "ens-lit-poetry-lesson-1",
+      chapterId: litPoetryChapter.id,
+      title: "Le romantisme en poésie",
+      content: "Caractéristiques du romantisme, auteurs clés et analyses de poèmes.",
+      order: 1,
+      duration: 60,
+      isPublished: true,
+    },
+  });
+
+  await prisma.lesson.upsert({
+    where: { id: "ens-lit-novel-lesson-1" },
+    update: {},
+    create: {
+      id: "ens-lit-novel-lesson-1",
+      chapterId: litNovelChapter.id,
+      title: "Le réalisme dans le roman",
+      content: "Balzac et l'ambition réaliste: thèmes, style, et contexte.",
+      order: 1,
+      duration: 75,
+      isPublished: true,
+    },
+  });
+
   // Create chapters and lessons for math subject
   const algebraChapter = await prisma.chapter.upsert({
     where: { id: "algebra-chapter" },
@@ -277,20 +332,25 @@ async function main() {
     },
   });
 
-  // Create enrollments with realistic data
+  // Ensure learner1 is only enrolled in ENS class (cleanup any older inconsistent enrollments)
+  await prisma.enrollment.deleteMany({
+    where: { userId: learner1.id, classId: { not: ensClass.id } }
+  });
+
+  // Create enrollments with realistic data (enroll demo learner in ENS class that exists)
   await prisma.enrollment.upsert({
     where: { 
       userId_classId: {
         userId: learner1.id,
-        classId: enamClass.id
+        classId: ensClass.id
       }
     },
     update: {},
     create: {
       userId: learner1.id,
-      classId: enamClass.id,
+      classId: ensClass.id,
       status: "ACTIVE",
-      enrolledAt: new Date('2024-01-20'),
+      enrolledAt: new Date('2024-02-05'),
     },
   });
 
@@ -312,18 +372,18 @@ async function main() {
 
   // Create realistic payments
   await prisma.payment.upsert({
-    where: { id: "payment-marie-enam" },
+    where: { id: "payment-marie-ens" },
     update: {},
     create: {
-      id: "payment-marie-enam",
+      id: "payment-marie-ens",
       userId: learner1.id,
-      classId: enamClass.id,
-      amount: 85000,
+      classId: ensClass.id,
+      amount: 75000,
       method: "MTN_MOMO",
       status: "PAID",
       phoneNumber: "+237690123456",
-      transactionId: "MOMO240120001",
-      paidAt: new Date('2024-01-20'),
+      transactionId: "MOMO240205001",
+      paidAt: new Date('2024-02-05'),
     },
   });
 

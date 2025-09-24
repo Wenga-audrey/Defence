@@ -15,14 +15,12 @@ import authRoutes from "./routes/auth.js";
 import courseRoutes from "./routes/courses.js";
 import assessmentRoutes from "./routes/assessments.js";
 import learningPathRoutes from "./routes/learningPaths.js";
-import subscriptionRoutes from "./routes/subscriptions.js";
+import achievementsRoutes from './routes/achievements.js';
 import analyticsRoutes from "./routes/analytics.js";
 import adminRoutes from "./routes/admin.js";
 import notificationRoutes from "./routes/notifications.js";
-import achievementRoutes from "./routes/achievements.js";
-import forumRoutes from "./routes/forums.js";
-import schedulerRoutes from "./routes/scheduler.js";
-import examModuleRoutes from "./routes/examModules.js";
+import forumRoutes from './routes/forums.js';
+import schedulerRoutes from './routes/scheduler.js';
 import examSimulationRoutes from "./routes/examSimulations.js";
 import profileRoutes from "./routes/profile.js";
 import preparatoryClassRoutes from "./routes/preparatoryClasses.js";
@@ -32,6 +30,10 @@ import quizRoutes from "./routes/quizzes.js";
 import paymentRoutes from "./routes/payments.js";
 import fileUploadRoutes from "./routes/fileUpload.js";
 import liveSessionRoutes from "./routes/liveSessions.js";
+import reviewRoutes from "./routes/reviews.js";
+import messageRoutes from "./routes/messages.js";
+import aiRoutes from "./routes/ai.js";
+import learnerRoutes from "./routes/learner.js";
 
 dotenv.config();
 
@@ -53,7 +55,13 @@ import("./lib/googleAI.js").then(({ googleAI }) => {
 });
 
 // CORS Configuration
-const allowedOrigins = ['http://localhost:8081', 'http://127.0.0.1:8081', 'http://localhost:3000'];
+const allowedOrigins = [
+  'http://localhost:8080',
+  'http://127.0.0.1:8080',
+  'http://localhost:8081',
+  'http://127.0.0.1:8081',
+  'http://localhost:3000'
+];
 
 // Enable CORS for all routes
 app.use((req, res, next) => {
@@ -100,14 +108,12 @@ app.use("/api/auth", authRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/learning-paths", learningPathRoutes);
-app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/achievements", achievementRoutes);
+app.use("/api/achievements", achievementsRoutes);
 app.use("/api/forums", forumRoutes);
 app.use("/api/scheduler", schedulerRoutes);
-app.use("/api/exam-modules", examModuleRoutes);
 app.use("/api/exam-simulations", examSimulationRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/classes", preparatoryClassRoutes);
@@ -117,6 +123,11 @@ app.use("/api/quizzes", quizRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/uploads", fileUploadRoutes);
 app.use("/api/live-sessions", liveSessionRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/messages", messageRoutes);
+app.use('/api/scheduler', schedulerRoutes); // Re-add scheduling route
+app.use("/api/ai", aiRoutes);
+app.use("/api/learner", learnerRoutes);
 
 // Error handling middleware
 app.use(notFound);

@@ -10,7 +10,7 @@ router.get("/", authenticate, async (req: AuthRequest, res, next) => {
   try {
     const userId = req.user!.id;
 
-    const userAchievements = await prisma.userAchievement.findMany({
+    const userAchievements = await (prisma as any).userAchievement.findMany({
       where: { userId },
       include: {
         achievement: true
@@ -18,7 +18,7 @@ router.get("/", authenticate, async (req: AuthRequest, res, next) => {
       orderBy: { unlockedAt: 'desc' }
     });
 
-    const allAchievements = await prisma.achievement.findMany({
+    const allAchievements = await (prisma as any).achievement.findMany({
       orderBy: { points: 'desc' }
     });
 
@@ -38,17 +38,40 @@ router.get("/", authenticate, async (req: AuthRequest, res, next) => {
   }
 });
 
-// Get all achievements (for display)
-router.get("/all", async (req, res, next) => {
+// Get leaderboard
+router.get("/leaderboard", async (req, res, next) => {
   try {
-    const achievements = await prisma.achievement.findMany({
-      orderBy: { points: 'desc' }
+    const topUsers = await (prisma as any).userAchievement.groupBy({
+      by: ['userId'],
+      _sum: {
+        achievement: {
+          points: true,
+        },
+      },
+      orderBy: {
+        _sum: {
+          achievement: {
+            points: 'desc',
+          },
+        },
+      },
+      take: 10,
     });
 
-    res.json({
-      success: true,
-      data: achievements
-    });
+    const leaderboard = await Promise.all(
+      topUsers.map(async (entry) => {
+        const user = await prisma.user.findUnique({
+          where: { id: entry.userId },
+          select: { id: true, firstName: true, lastName: true },
+        });
+        return {
+          userId: entry.userId,
+          name: `${user?.firstName} ${user?.lastName}`,
+          totalPoints: entry._sum.achievement?.points || 0,
+        };
+      })
+    );
+
   } catch (error) {
     next(error);
   }

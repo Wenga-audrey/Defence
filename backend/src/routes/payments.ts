@@ -311,9 +311,9 @@ router.get('/:paymentId/instructions',
 
       const instructions = getPaymentInstructions(
         payment.method,
-        payment.amount,
+        Number(payment.amount),
         payment.transactionId,
-        payment.phoneNumber || undefined
+        String(payment.phoneNumber ?? '')
       );
 
       res.json({
@@ -510,5 +510,114 @@ function getPaymentInstructions(method: string, amount: number, reference: strin
     note: 'Support: +237 6XX XXX XXX'
   };
 }
+
+// Create subscription
+router.post('/subscriptions', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { planType, paymentMethod } = req.body;
+    const userId = req.user!.id;
+
+    const subscription = await (prisma as any).subscription.create({
+      data: {
+        userId,
+        planType,
+        paymentMethod,
+        status: 'ACTIVE',
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: subscription,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get user subscriptions
+router.get('/subscriptions', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const userId = req.user!.id;
+
+    const subscriptions = await (prisma as any).subscription.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      success: true,
+      data: subscriptions,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Pay for a specific course
+router.post('/courses/:courseId', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { courseId } = req.params;
+    const { paymentMethod } = req.body;
+    const userId = req.user!.id;
+
+    const course = await (prisma as any).course.findUnique({
+      where: { id: courseId },
+    });
+
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+
+    const payment = await (prisma as any).payment.create({
+      data: {
+        userId,
+        classId: course.classId, // Assuming course has a classId
+        amount: Number(course.price),
+        method: paymentMethod,
+        status: 'PAID',
+        transactionId: `PAY-${Date.now()}`,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: payment,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get institutional licensing options
+router.get('/institutional', async (req, res, next) => {
+  try {
+    const plans = [
+      {
+        id: 'BASIC_INSTITUTIONAL',
+        name: 'Basic Institutional',
+        description: 'Up to 50 students',
+        price: 500000,
+        features: ['Up to 50 students', 'Basic support', 'Standard courses'],
+      },
+      {
+        id: 'PREMIUM_INSTITUTIONAL',
+        name: 'Premium Institutional',
+        description: 'Up to 200 students',
+        price: 1500000,
+        features: ['Up to 200 students', 'Premium support', 'All courses', 'Custom content'],
+      },
+    ];
+
+    res.json({
+      success: true,
+      data: plans,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 export default router;

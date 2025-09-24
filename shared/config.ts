@@ -1,6 +1,6 @@
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_URL || "http://localhost:3001",
+  BASE_URL: import.meta.env.VITE_API_URL || "http://localhost:3002",
   ENDPOINTS: {
     AUTH: {
       LOGIN: "/api/auth/login",
@@ -11,8 +11,8 @@ export const API_CONFIG = {
       RESET_PASSWORD: "/api/auth/reset-password",
     },
     USERS: {
-      PROFILE: "/api/users/profile",
-      UPDATE_PROFILE: "/api/users/profile",
+      PROFILE: "/api/profile",
+      UPDATE_PROFILE: "/api/profile",
     },
     COURSES: {
       LIST: "/api/courses",

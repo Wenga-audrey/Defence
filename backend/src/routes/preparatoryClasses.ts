@@ -253,8 +253,7 @@ router.get('/:id/enrollments', authenticate, requireRole(['PREP_ADMIN', 'TEACHER
             lastName: true,
             email: true,
             phone: true,
-            paymentStatus: true,
-            enrolledAt: true
+            paymentStatus: true
           }
         }
       },
@@ -301,6 +300,71 @@ router.post('/:id/teachers', authenticate, requireRole(['PREP_ADMIN', 'SUPER_ADM
     });
 
     res.status(201).json(assignment);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Bulk setup: create subjects/chapters and assign teachers in one request
+router.post('/:id/setup-bulk', authenticate, requireRole(['PREP_ADMIN', 'SUPER_ADMIN']), async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params; // classId
+    const { subjects = [], teacherAssignments = [] } = req.body as {
+      subjects: Array<{ name: string; description?: string; order: number; chapters?: Array<{ title: string; description?: string; order: number; duration?: number }> }>;
+      teacherAssignments: Array<{ teacherId: string; subjectName?: string; subjectId?: string; role?: string }>;
+    };
+
+    // Ensure class exists
+    const cls = await prisma.preparatoryClass.findUnique({ where: { id } });
+    if (!cls) return res.status(404).json({ error: 'Preparatory class not found' });
+
+    // Create subjects (and chapters)
+    const createdSubjects = [] as { id: string; name: string }[];
+    for (const s of subjects) {
+      const subj = await prisma.subject.create({
+        data: {
+          classId: id,
+          name: s.name,
+          description: s.description,
+          order: s.order,
+          isActive: true,
+          chapters: s.chapters && s.chapters.length ? {
+            create: s.chapters.map(ch => ({
+              title: ch.title,
+              description: ch.description,
+              order: ch.order,
+              duration: ch.duration ?? 60,
+              isPublished: false
+            }))
+          } : undefined
+        }
+      });
+      createdSubjects.push({ id: subj.id, name: subj.name });
+    }
+
+    // Map subjectName to subjectId when needed
+    const nameToId = new Map(createdSubjects.map(s => [s.name, s.id]));
+
+    // Assign teachers
+    const createdAssignments = [] as any[];
+    for (const t of teacherAssignments) {
+      const subjectId = t.subjectId || (t.subjectName ? nameToId.get(t.subjectName) : undefined) || null;
+      const assignment = await prisma.classTeacher.create({
+        data: {
+          classId: id,
+          teacherId: t.teacherId,
+          subjectId: subjectId || undefined,
+          role: t.role || 'TEACHER'
+        }
+      });
+      createdAssignments.push(assignment);
+    }
+
+    res.status(201).json({
+      success: true,
+      createdSubjects,
+      createdAssignments
+    });
   } catch (error) {
     next(error);
   }

@@ -103,14 +103,16 @@ router.post('/chapter', authenticate, requireRole(['TEACHER', 'PREP_ADMIN', 'SUP
     } = req.body;
 
     const quiz = await prisma.chapterQuiz.create({
-      data: {
+      data: ({
         chapterId,
         title,
         description,
         timeLimit: parseInt(timeLimit),
         passingScore: parseInt(passingScore),
-        isActive: true
-      }
+        isActive: true,
+        createdById: req.user!.id,
+        source: generateWithAI ? 'AI' : 'MANUAL'
+      } as any)
     });
 
     // Generate AI questions if requested
@@ -135,7 +137,7 @@ router.post('/chapter', authenticate, requireRole(['TEACHER', 'PREP_ADMIN', 'SUP
                 chapterQuizId: quiz.id,
                 question: q.question,
                 type: q.type,
-                options: q.options ? JSON.stringify(q.options) : null,
+                options: q.options ? q.options : undefined,
                 correctAnswer: q.correctAnswer,
                 explanation: q.explanation,
                 difficulty: q.difficulty,
@@ -159,6 +161,13 @@ router.post('/chapter', authenticate, requireRole(['TEACHER', 'PREP_ADMIN', 'SUP
       }
     });
 
+    // Notify enrolled learners in the related class
+    try {
+      await notifyClassLearnersForChapterQuiz(prisma, chapterId, quiz.id, title || 'New Chapter Quiz');
+    } catch (e) {
+      console.error('Failed to send quiz notifications:', e);
+    }
+
     res.status(201).json(completeQuiz);
   } catch (error) {
     next(error);
@@ -178,14 +187,16 @@ router.post('/subject', authenticate, requireRole(['TEACHER', 'PREP_ADMIN', 'SUP
     } = req.body;
 
     const quiz = await prisma.subjectQuiz.create({
-      data: {
+      data: ({
         subjectId,
         title,
         description,
         timeLimit: parseInt(timeLimit),
         passingScore: parseInt(passingScore),
-        isActive: true
-      }
+        isActive: true,
+        createdById: req.user!.id,
+        source: generateWithAI ? 'AI' : 'MANUAL'
+      } as any)
     });
 
     // Generate AI questions if requested
@@ -214,7 +225,7 @@ router.post('/subject', authenticate, requireRole(['TEACHER', 'PREP_ADMIN', 'SUP
                 subjectQuizId: quiz.id,
                 question: q.question,
                 type: q.type,
-                options: q.options ? JSON.stringify(q.options) : null,
+                options: q.options ? q.options : undefined,
                 correctAnswer: q.correctAnswer,
                 explanation: q.explanation,
                 difficulty: q.difficulty,
@@ -288,8 +299,8 @@ router.post('/:quizId/submit', authenticate, async (req: AuthRequest, res, next)
     // Calculate score
     let score = 0;
     let maxScore = 0;
-    const detailedAnswers = [];
-    const weakAreas = [];
+    const detailedAnswers: any[] = [];
+    const weakAreas: any[] = [];
 
     for (const question of quiz.questions) {
       maxScore += question.points;
@@ -321,7 +332,7 @@ router.post('/:quizId/submit', authenticate, async (req: AuthRequest, res, next)
     }
 
     // Generate AI suggestions based on weak areas
-    let suggestions = null;
+    let suggestions: any | null = null;
     if (weakAreas.length > 0) {
       try {
         suggestions = await generateStudySuggestions(weakAreas, quiz);
@@ -460,3 +471,41 @@ async function generateStudySuggestions(weakAreas: any[], quiz: any) {
 }
 
 export default router;
+
+// Helper functions
+async function notifyClassLearnersForChapterQuiz(prisma: PrismaClient, chapterId: string, quizId: string, quizTitle: string) {
+  const chapter = await prisma.chapter.findUnique({
+    where: { id: chapterId },
+    include: { subject: { include: { class: true } } }
+  });
+  if (!chapter) return;
+  const classId = chapter.subject.class.id;
+
+  const enrollments = await prisma.enrollment.findMany({ where: { classId }, select: { userId: true } });
+  if (!enrollments.length) return;
+  await (prisma as any).notification.createMany({
+    data: enrollments.map(e => ({
+      userId: e.userId,
+      title: 'New Chapter Quiz Available',
+      message: `A new quiz "${quizTitle}" has been published for chapter ${chapter.title}.`,
+      type: 'quiz'
+    }))
+  });
+}
+
+async function notifyClassLearnersForSubjectQuiz(prisma: PrismaClient, subjectId: string, quizId: string, quizTitle: string) {
+  const subject = await prisma.subject.findUnique({ where: { id: subjectId }, include: { class: true } });
+  if (!subject) return;
+  const classId = subject.class.id;
+
+  const enrollments = await prisma.enrollment.findMany({ where: { classId }, select: { userId: true } });
+  if (!enrollments.length) return;
+  await (prisma as any).notification.createMany({
+    data: enrollments.map(e => ({
+      userId: e.userId,
+      title: 'New Subject Quiz Available',
+      message: `A new quiz "${quizTitle}" has been published for subject ${subject.name}.`,
+      type: 'quiz'
+    }))
+  });
+}

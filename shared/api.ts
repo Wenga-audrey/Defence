@@ -86,7 +86,18 @@ export interface LearningPathItem {
 // Get auth token from localStorage
 export const getAuthToken = (): string | null => {
   if (typeof window !== "undefined") {
-    return localStorage.getItem("auth_token");
+    // Primary key
+    const primary = localStorage.getItem("auth_token");
+    if (primary) return primary;
+    // Backward compatibility: migrate legacy 'token' to 'auth_token'
+    const legacy = localStorage.getItem("token");
+    if (legacy) {
+      try {
+        localStorage.setItem("auth_token", legacy);
+        localStorage.removeItem("token");
+      } catch {}
+      return legacy;
+    }
   }
   return null;
 };

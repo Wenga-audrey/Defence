@@ -14,30 +14,33 @@ import Programs from "./pages/Programs";
 import Ressources from "./pages/Ressources";
 import Contact from "./pages/Contact";
 import Admissions from "./pages/Admissions";
+import About from "./pages/About";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
+import GetStarted from "./pages/GetStarted";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
-import ForgotPassword from "./pages/ForgotPassword";
 import Quiz from "./pages/Quiz";
 import QuizResults from "./pages/QuizResults";
-import GetStarted from "./pages/GetStarted";
-import About from "./pages/About";
-import Payment from "./pages/Payment";
-import Pricing from "./pages/Pricing";
-import LearnerDashboard from "./pages/LearnerDashboard";
-import InstructorDashboard from "./pages/InstructorDashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import SuperAdminDashboard from "./pages/SuperAdminDashboard";
-import AdminClasses from "./pages/AdminClasses";
-import Exams from "./pages/Exams";
-import ExamDetail from "./pages/ExamDetail";
-import StudyCalendar from "./pages/StudyCalendar";
-import LessonPlayer from "./pages/LessonPlayer";
-import Courses from "./pages/Courses";
+import SubjectDetail from "./pages/SubjectDetail";
 import StudyGroups from "./pages/StudyGroups";
 import Forums from "./pages/Forums";
 import ForumTopic from "./pages/ForumTopic";
+import Exams from "./pages/Exams";
+import ExamDetail from "./pages/ExamDetail";
+import Pricing from "./pages/Pricing";
+import Payment from "./pages/Payment";
+import LearnerDashboard from "./pages/LearnerDashboard";
+import InstructorDashboard from "./pages/InstructorDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminClasses from "./pages/AdminClasses";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
+import StudyCalendar from "./pages/StudyCalendar";
+import LessonPlayer from "./pages/LessonPlayer";
+import Courses from "./pages/Courses";
+import Scheduling from "./pages/Scheduling";
+import Achievements from "./pages/Achievements";
 
 const queryClient = new QueryClient();
 
@@ -111,10 +114,26 @@ const App = () => (
           <Route path="/lesson/:id" element={<LessonPlayer />} />
           <Route path="/courses" element={<Courses />} />
           <Route path="/course/:id" element={<Courses />} />
+          <Route path="/subject/:id" element={<SubjectDetail />} />
           <Route path="/study-groups" element={<StudyGroups />} />
           <Route path="/forums" element={<Forums />} />
           <Route path="/forum/:topicId" element={<ForumTopic />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route
+            path="/scheduling"
+            element={
+              <ProtectedRoute allow={["learner"]}>
+                <Scheduling />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/achievements"
+            element={
+              <ProtectedRoute allow={["learner"]}>
+                <Achievements />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

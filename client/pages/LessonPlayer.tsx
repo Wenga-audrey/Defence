@@ -38,10 +38,11 @@ import {
   Users,
   Activity,
 } from "@/lib/icons";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function LessonPlayer() {
   const { lessonId } = useParams();
+  const navigate = useNavigate();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(600); // 10 minutes example
@@ -242,6 +243,47 @@ export default function LessonPlayer() {
   };
 
   const currentQuizData = lessonData.quizzes.find((q) => q.id === currentQuiz);
+
+  // Start AI Post-Lesson Quiz: call backend and route to Quiz page
+  const handleStartPostLessonQuiz = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const resp = await fetch('/api/ai/post-lesson-quiz', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ lessonId, count: 5, difficulty: 'MEDIUM' }),
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || 'Failed to create post-lesson quiz');
+      }
+      const data = await resp.json();
+      // Normalize questions to the shape expected by Quiz.tsx
+      const normalized = (data.questions || []).map((q: any, idx: number) => ({
+        id: idx + 1,
+        type: 'multiple-choice',
+        question: q.question,
+        options: Array.isArray(q.options) ? q.options : [],
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation || '',
+      }));
+      // Store for Quiz page consumption
+      localStorage.setItem('aiGeneratedQuiz', JSON.stringify({
+        title: data?.quiz?.level === 'CHAPTER' ? 'Post-Lesson Quiz' : 'AI Quiz',
+        subject: 'General',
+        questions: normalized,
+        meta: { quizId: data?.quiz?.id, level: data?.quiz?.level }
+      }));
+      navigate('/quiz');
+    } catch (e) {
+      console.error(e);
+      alert('Could not start the post-lesson quiz. Please try again.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-black text-white">

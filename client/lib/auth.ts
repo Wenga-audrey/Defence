@@ -30,6 +30,8 @@ export async function login(input: LoginInput) {
   const role = (user.role || "STUDENT") as string;
   const roleMap: Record<string, string> = {
     STUDENT: "learner",
+    LEARNER: "learner",
+    TEACHER: "instructor",
     INSTRUCTOR: "instructor",
     ADMIN: "admin",
     SUPER_ADMIN: "super-admin",
@@ -50,6 +52,8 @@ export async function register(input: RegisterInput) {
   const role = (user.role || "STUDENT") as string;
   const roleMap: Record<string, string> = {
     STUDENT: "learner",
+    LEARNER: "learner",
+    TEACHER: "instructor",
     INSTRUCTOR: "instructor",
     ADMIN: "admin",
     SUPER_ADMIN: "super-admin",

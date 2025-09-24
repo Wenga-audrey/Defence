@@ -396,4 +396,144 @@ router.post("/replies/:replyId/like", authenticate, async (req: AuthRequest, res
   }
 });
 
+// Create a study group
+router.post("/study-groups", authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { name, description, maxMembers, classId } = req.body;
+    const userId = req.user!.id;
+
+    if (!name || !description) {
+      return res.status(400).json({ error: "Name and description are required" });
+    }
+
+    const studyGroup = await (prisma as any).studyGroup.create({
+      data: {
+        name,
+        description,
+        maxMembers: maxMembers || 10,
+        classId,
+        createdById: userId,
+        members: {
+          create: {
+            userId,
+            role: "ADMIN"
+          }
+        }
+      },
+      include: {
+        members: true,
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true }
+        }
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: studyGroup
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get study groups
+router.get("/study-groups", async (req, res, next) => {
+  try {
+    const { classId } = req.query;
+
+    const where: any = {};
+    if (classId) {
+      where.classId = classId;
+    }
+
+    const studyGroups = await (prisma as any).studyGroup.findMany({
+      where,
+      include: {
+        members: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true }
+            }
+          }
+        },
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true }
+        },
+        _count: {
+          select: {
+            members: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({
+      success: true,
+      data: studyGroups
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Join a study group
+router.post("/study-groups/:groupId/join", authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { groupId } = req.params;
+    const userId = req.user!.id;
+
+    const studyGroup = await (prisma as any).studyGroup.findUnique({
+      where: { id: groupId },
+      include: { members: true }
+    });
+
+    if (!studyGroup) {
+      return res.status(404).json({ error: "Study group not found" });
+    }
+
+    if (studyGroup.members.length >= studyGroup.maxMembers) {
+      return res.status(400).json({ error: "Study group is full" });
+    }
+
+    await (prisma as any).studyGroupMember.create({
+      data: {
+        userId,
+        studyGroupId: groupId,
+        role: "MEMBER"
+      }
+    });
+
+    res.json({
+      success: true,
+      message: "Joined study group successfully"
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Leave a study group
+router.post("/study-groups/:groupId/leave", authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { groupId } = req.params;
+    const userId = req.user!.id;
+
+    await (prisma as any).studyGroupMember.deleteMany({
+      where: {
+        userId,
+        studyGroupId: groupId
+      }
+    });
+
+    res.json({
+      success: true,
+      message: "Left study group successfully"
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "dev": "prisma generate && prisma db push && tsx watch src/index.ts",
-    "start": "prisma generate && prisma db push && tsx watch src/index.ts",
+    "dev": "prisma generate && prisma db push && npm run db:seed && tsx watch src/index.ts",
+    "start": "prisma generate && prisma db push && npm run db:seed && tsx watch src/index.ts",
     "start:fresh": "npm run db:reset && npm start",
     "build": "tsc",
     "start:prod": "npm run db:setup && node dist/index.js",

@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Track how a quiz was created
+enum QuizSource {
+  MANUAL
+  AI
+}
+
 enum Role {
   LEARNER
   TEACHER
@@ -57,6 +63,11 @@ model User {
   receivedMessages  PrivateMessage[] @relation("MessageRecipient")
   teachingClasses   ClassTeacher[]
   announcements     Announcement[]
+  // Back-relations for new models
+  createdChapterQuizzes ChapterQuiz[] @relation("UserCreatedChapterQuizzes")
+  createdSubjectQuizzes SubjectQuiz[] @relation("UserCreatedSubjectQuizzes")
+  notifications         Notification[]
+  classReviews          ClassReview[]
 
   @@map("users")
 }
@@ -80,6 +91,7 @@ model PreparatoryClass {
   teachers      ClassTeacher[]
   payments      Payment[]
   announcements Announcement[]
+  classReviews  ClassReview[]
 
   @@map("preparatory_classes")
 }
@@ -167,11 +179,15 @@ model ChapterQuiz {
   timeLimit   Int      @default(30) // minutes
   passingScore Int     @default(60) // percentage
   isActive    Boolean  @default(true)
+  // Who created and how it was created
+  createdById String
+  source      QuizSource @default(MANUAL)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
   chapter   Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  createdBy User         @relation("UserCreatedChapterQuizzes", fields: [createdById], references: [id], onDelete: Cascade)
   questions QuizQuestion[]
   results   QuizResult[]
 
@@ -186,11 +202,15 @@ model SubjectQuiz {
   timeLimit   Int      @default(120) // minutes
   passingScore Int     @default(60) // percentage
   isActive    Boolean  @default(true)
+  // Who created and how it was created
+  createdById String
+  source      QuizSource @default(MANUAL)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
   subject   Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdBy User         @relation("UserCreatedSubjectQuizzes", fields: [createdById], references: [id], onDelete: Cascade)
   questions QuizQuestion[]
   results   QuizResult[]
 
@@ -370,4 +390,38 @@ model PrivateMessage {
   recipient User @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@map("private_messages")
+}
+
+// In-app notifications for users
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String   @db.Text
+  type      String   @default("info") // info, quiz, announcement, system
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// Learner reviews and ratings for a preparatory class (exam)
+model ClassReview {
+  id        String   @id @default(cuid())
+  userId    String
+  classId   String
+  rating    Int      // 1-5
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class PreparatoryClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classId])
+  @@index([classId])
+  @@map("class_reviews")
 }
