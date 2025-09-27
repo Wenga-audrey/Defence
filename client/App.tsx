@@ -115,26 +115,6 @@ const App = () => (
           <Route path="/courses" element={<Courses />} />
           <Route path="/course/:id" element={<Courses />} />
           <Route path="/subject/:id" element={<SubjectDetail />} />
-          <Route path="/study-groups" element={<StudyGroups />} />
-          <Route path="/forums" element={<Forums />} />
-          <Route path="/forum/:topicId" element={<ForumTopic />} />
-          <Route
-            path="/scheduling"
-            element={
-              <ProtectedRoute allow={["learner"]}>
-                <Scheduling />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/achievements"
-            element={
-              <ProtectedRoute allow={["learner"]}>
-                <Achievements />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

@@ -313,7 +313,7 @@ router.get('/:paymentId/instructions',
         payment.method,
         Number(payment.amount),
         payment.transactionId,
-        String(payment.phoneNumber ?? '')
+        String(payment.phoneNumber || '')
       );
 
       res.json({
